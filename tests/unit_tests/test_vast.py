@@ -17,6 +17,9 @@ The common variable block is *derived from the template* (jinja2.meta), not
 hand-listed, so it cannot drift as upstream adds template variables: the claim
 under test becomes "of every name vast-ray.yml.j2 needs, docker_login_config is
 the one make_deploy must supply."
+
+The offer-query tests at the end of the file are unrelated to the template: they
+pin the exact string ``launch`` sends to the Vast SDK.
 """
 import os
 from unittest import mock
@@ -27,6 +30,7 @@ import yaml
 
 from sky.clouds import vast
 from sky.provision import docker_utils
+from sky.provision.vast.utils import _create_search_offers_query
 from sky.utils import common_utils
 from sky.utils import resources_utils
 
@@ -173,3 +177,14 @@ def test_vast_make_deploy_binds_docker_login_config():
                                            server='index.docker.io')
     assert _deploy_vars(login)['docker_login_config'] is login
     assert _deploy_vars(None)['docker_login_config'] is None
+
+
+def test_search_offers_valid_query():
+    got = _create_search_offers_query(instance_type='1x-RTX_5090-32-65536',
+                                      region=', CA, NA',
+                                      disk_size=32,
+                                      secure_only=True)
+
+    assert got == ('chunked=true georegion=true geolocation=NA '
+                   'disk_space>=32 num_gpus=1 gpu_name=RTX_5090 '
+                   'cpu_ram>=64.0 datacenter=true')
