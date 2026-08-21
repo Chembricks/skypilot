@@ -231,6 +231,7 @@ class Vast(clouds.Cloud):
             'image_id': image_id,
             'secure_only': secure_only,
             'create_instance_kwargs': create_instance_kwargs or {},
+            'docker_login_config': resources.docker_login_config,
         }
 
     def _get_feasible_launchable_resources(

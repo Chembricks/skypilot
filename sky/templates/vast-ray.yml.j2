@@ -11,6 +11,20 @@ provider:
   region: "{{region}}"
   disable_launch_config_check: true
   secure_only: {{secure_only}}
+  # For Vast, the instance IS a docker container (docker-native), so we must not
+  # emit a top-level `docker:` field, which would make the provisioner run
+  # DockerInitializer and start a container on the host. Put the login config in
+  # the provider config here instead (mirroring Yotta); the Vast provisioner reads
+  # it from provider_config to authenticate the private-image pull.
+  {%- if docker_login_config is not none %}
+  docker_login_config:
+    username: |-
+      {{docker_login_config.username}}
+    password: |-
+      {{docker_login_config.password | indent(6) }}
+    server: |-
+      {{docker_login_config.server}}
+  {%- endif %}
   {%- if create_instance_kwargs %}
   create_instance_kwargs: {{create_instance_kwargs | tojson}}
   {%- endif %}

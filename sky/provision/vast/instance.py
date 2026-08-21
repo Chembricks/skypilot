@@ -72,7 +72,11 @@ def run_instances(region: str, cluster_name: str, cluster_name_on_cloud: str,
             logger.warning(f'Failed to read SSH public key from '
                            f'{ssh_public_key_path}: {e}')
 
-    docker_login_config = config.docker_config.get('docker_login_config')
+    # Vast is docker-native (the instance is the container), so the cluster config
+    # carries no top-level `docker:` field and `docker_config` is always empty.
+    # The login config for a private-registry pull is placed in the provider config
+    # by the Vast template (mirroring Yotta); read it from there.
+    docker_login_config = config.provider_config.get('docker_login_config')
     login_args = None
     image_name = config.node_config['ImageId']
     if docker_login_config:
