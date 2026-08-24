@@ -2243,6 +2243,14 @@ def get_config_schema():
                 'create_instance_kwargs': {
                     'type': 'object',
                 },
+                # Offer-longevity / reliability floors applied to the Vast offer search
+                # (see clouds/vast.py:make_deploy_resources_variables). 0 / omitted -> no filter.
+                'min_duration_days': {
+                    'type': 'number',
+                },
+                'min_reliability': {
+                    'type': 'number',
+                },
             }
         },
         'nebius': {

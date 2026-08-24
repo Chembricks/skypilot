@@ -43,6 +43,8 @@ def launch(name: str,
            ports: Optional[List[int]],
            preemptible: bool,
            secure_only: bool,
+           min_duration_days: Optional[float] = None,
+           min_reliability: Optional[float] = None,
            private_docker_registry: Optional[bool] = None,
            login: Optional[str] = None,
            create_instance_kwargs: Optional[Dict[str, Any]] = None,
@@ -127,6 +129,18 @@ def launch(name: str,
     if secure_only:
         query.append('datacenter=true')
         query.append('hosting_type>=1')
+    # Longevity filter (Chembricks): a Vast host advertises `duration` (max remaining rental, in DAYS --
+    # the SDK scales it to seconds via offers_mult) and a `reliability` score; SkyPilot otherwise ignores
+    # both and can land a job on a host whose availability window ends mid-run. When set (via
+    # `vast.{min_duration_days,min_reliability}` in ~/.sky/config.yaml or the SKYPILOT_VAST_MIN_* env
+    # vars -- resolved on the launcher in clouds/vast.py and passed through here), they add a floor to the
+    # offer query. Both default to None -> no change. This NARROWS the offer set (it does not reorder it),
+    # so Vast's usual price/score ranking still picks among qualifying hosts. Example: min_duration_days=2
+    # requires >48h of remaining availability.
+    if min_duration_days is not None and float(min_duration_days) > 0:
+        query.append(f'duration>{float(min_duration_days)}')
+    if min_reliability is not None and str(min_reliability).strip():
+        query.append(f'reliability>{float(min_reliability)}')
     query_str = ' '.join(query)
 
     instance_list = vast.vast().search_offers(query=query_str)

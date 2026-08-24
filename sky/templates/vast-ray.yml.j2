@@ -28,6 +28,12 @@ provider:
   {%- if create_instance_kwargs %}
   create_instance_kwargs: {{create_instance_kwargs | tojson}}
   {%- endif %}
+  {%- if min_duration_days is not none %}
+  min_duration_days: {{min_duration_days}}
+  {%- endif %}
+  {%- if min_reliability is not none %}
+  min_reliability: {{min_reliability}}
+  {%- endif %}
 
 auth:
   ssh_user: root

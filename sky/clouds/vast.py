@@ -223,6 +223,29 @@ class Vast(clouds.Cloud):
             default_value={},
             override_configs=resources.cluster_config_overrides,
         )
+        # Vast offer-longevity / reliability filter (Chembricks). Resolved HERE (in the launch flow) so
+        # a value set on the launcher -- `~/.sky/config.yaml` `vast.{min_duration_days,min_reliability}`,
+        # re-read per request -- reaches the provisioner without restarting the API server. Falls back to
+        # the SKYPILOT_VAST_MIN_* env vars. Forwarded to the provisioner via provider_config (below) and
+        # applied to the offer query in provision/vast/utils.py:launch. None/0/'' -> no filter (default).
+        min_duration_days = skypilot_config.get_effective_region_config(
+            cloud='vast',
+            region=region.name,
+            keys=('min_duration_days',),
+            default_value=None,
+            override_configs=resources.cluster_config_overrides,
+        )
+        if min_duration_days is None:
+            min_duration_days = os.environ.get('SKYPILOT_VAST_MIN_DURATION_DAYS') or None
+        min_reliability = skypilot_config.get_effective_region_config(
+            cloud='vast',
+            region=region.name,
+            keys=('min_reliability',),
+            default_value=None,
+            override_configs=resources.cluster_config_overrides,
+        )
+        if min_reliability is None:
+            min_reliability = os.environ.get('SKYPILOT_VAST_MIN_RELIABILITY') or None
 
         return {
             'instance_type': resources.instance_type,
@@ -232,6 +255,8 @@ class Vast(clouds.Cloud):
             'secure_only': secure_only,
             'create_instance_kwargs': create_instance_kwargs or {},
             'docker_login_config': resources.docker_login_config,
+            'min_duration_days': min_duration_days,
+            'min_reliability': min_reliability,
         }
 
     def _get_feasible_launchable_resources(

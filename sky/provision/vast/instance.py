@@ -128,6 +128,8 @@ def run_instances(region: str, cluster_name: str, cluster_name_on_cloud: str,
                                           created_instance_ids=[])
 
         secure_only = config.provider_config.get('secure_only', False)
+        min_duration_days = config.provider_config.get('min_duration_days')
+        min_reliability = config.provider_config.get('min_reliability')
         for _ in range(to_start_count):
             node_type = 'head' if head_instance_id is None else 'worker'
             try:
@@ -140,6 +142,8 @@ def run_instances(region: str, cluster_name: str, cluster_name_on_cloud: str,
                     image_name=image_name,
                     ports=config.ports_to_open_on_launch,
                     secure_only=secure_only,
+                    min_duration_days=min_duration_days,
+                    min_reliability=min_reliability,
                     private_docker_registry=docker_login_config is not None,
                     login=login_args,
                     create_instance_kwargs=create_instance_kwargs,
