@@ -20,6 +20,11 @@ the one make_deploy must supply."
 
 The offer-query tests at the end of the file are unrelated to the template: they
 pin the exact string ``launch`` sends to the Vast SDK.
+
+``vast.min_duration_days`` travels the same path as ``docker_login_config`` --
+config, make_deploy, provider block -- and then adds a ``duration>N`` term to
+that query. It is tested per hop in both its set and unset form, because unset
+has to leave the query exactly as it was.
 """
 import os
 from unittest import mock
@@ -31,6 +36,7 @@ import yaml
 
 from sky.clouds import vast
 from sky.provision import docker_utils
+from sky.provision.vast import utils as vast_utils
 from sky.provision.vast.utils import _create_search_offers_query
 from sky.utils import common_utils
 from sky.utils import resources_utils
@@ -76,16 +82,24 @@ def _full_vars(docker_login_config):
     return {**_template_vars(), 'docker_login_config': docker_login_config}
 
 
-def _deploy_vars(docker_login_config):
+def _deploy_vars(docker_login_config=None, min_duration_days=None):
     """The real make_deploy_resources_variables output. resources/region are
-    mocked so no catalog is needed; the value under test is whether the returned
-    dict carries docker_login_config."""
+    mocked so no catalog is needed; what is under test is whether the returned
+    dict carries the two values the provider block needs."""
     resources = mock.MagicMock(unsafe=True)
     resources.assert_launchable.return_value = resources
     resources.instance_type = '1x-RTX_4090-16'
     resources.image_id = None
     resources.cluster_config_overrides = {}
     resources.docker_login_config = docker_login_config
+    configured = {'min_duration_days': min_duration_days}
+
+    def _effective_config(**kwargs):
+        key = kwargs['keys'][0]
+        if key in configured and configured[key] is not None:
+            return configured[key]
+        return kwargs.get('default_value')
+
     region = mock.MagicMock()
     region.name = 'someregion'
     with mock.patch.object(vast.Vast,
@@ -95,7 +109,7 @@ def _deploy_vars(docker_login_config):
                     'make_ray_custom_resources_str', return_value=None), \
          mock.patch('sky.clouds.vast.skypilot_config.'
                     'get_effective_region_config',
-                    side_effect=lambda **kw: kw.get('default_value')):
+                    side_effect=_effective_config):
         return vast.Vast().make_deploy_resources_variables(
             resources=resources,
             cluster_name=resources_utils.ClusterName(display_name='vastcheck',
@@ -221,3 +235,72 @@ def test_search_offers_query_survives_the_sdk_parser():
     assert 'US' in parsed['geolocation']['in']
     assert parsed['gpu_name'] == {'eq': 'RTX 5090'}
     assert parsed['datacenter'] == {'eq': True}
+
+
+def _launch_query(**kwargs):
+    """The query string launch() hands to search_offers. An empty offer list
+    makes launch() raise before it rents anything."""
+    captured = {}
+
+    class _FakeVast:
+
+        def search_offers(self, query):
+            captured['query'] = query
+            return []
+
+    with mock.patch('sky.provision.vast.utils.vast.vast',
+                    return_value=_FakeVast()):
+        with pytest.raises(RuntimeError):
+            vast_utils.launch(name='vastcheck-head',
+                              instance_type='1x-RTX_4090-32-65536',
+                              region='Japan, JP, AS',
+                              disk_size=40,
+                              image_name='vastai/base:0.0.2',
+                              ports=None,
+                              preemptible=False,
+                              secure_only=False,
+                              **kwargs)
+    return captured['query']
+
+
+def test_launch_omits_duration_when_unset():
+    """The no-behaviour-change guarantee: not opting in leaves the query with no
+    duration term at all. The most important assertion in this file."""
+    assert 'duration' not in _launch_query()
+
+
+def test_launch_appends_duration_when_set():
+    assert 'duration>2' in _launch_query(min_duration_days=2)
+
+
+def test_launch_emits_an_integer():
+    """`duration>2.0` would be parsed as `duration>2` by the SDK and would take
+    every later term of the query with it, so the value must not gain a
+    fractional part on the way out."""
+    assert 'duration>2.0' not in _launch_query(min_duration_days=2.0)
+    assert 'duration>2 ' in _launch_query(min_duration_days=2.0) + ' '
+
+
+def test_make_deploy_binds_min_duration_days():
+    assert _deploy_vars(min_duration_days=2)['min_duration_days'] == 2
+    assert _deploy_vars()['min_duration_days'] is None
+
+
+def test_template_renders_min_duration_days(tmp_path):
+    """A configured value supplied via make_deploy reaches the provider config.
+    The exclude makes make_deploy the only possible source of the name."""
+    variables = {
+        **_template_vars(exclude=('min_duration_days',)),
+        **_deploy_vars(min_duration_days=2),
+    }
+    assert _render(tmp_path, variables)['provider']['min_duration_days'] == 2
+
+
+def test_template_omits_min_duration_days_when_unset(tmp_path):
+    """Unset: the block is skipped, so provider_config carries no key and the
+    provisioner reads None (no-regression guard)."""
+    variables = {
+        **_template_vars(exclude=('min_duration_days',)),
+        **_deploy_vars(),
+    }
+    assert 'min_duration_days' not in _render(tmp_path, variables)['provider']

@@ -43,6 +43,7 @@ def launch(name: str,
            ports: Optional[List[int]],
            preemptible: bool,
            secure_only: bool,
+           min_duration_days: Optional[int] = None,
            private_docker_registry: Optional[bool] = None,
            login: Optional[str] = None,
            create_instance_kwargs: Optional[Dict[str, Any]] = None,
@@ -113,7 +114,7 @@ def launch(name: str,
     del ports
 
     query_str = _create_search_offers_query(instance_type, region, disk_size,
-                                            secure_only)
+                                            secure_only, min_duration_days)
 
     instance_list = vast.vast().search_offers(query=query_str)
 
@@ -230,8 +231,11 @@ def launch(name: str,
     return new_instance['id']
 
 
-def _create_search_offers_query(instance_type: str, region: str, disk_size: int,
-                                secure_only: bool) -> str:
+def _create_search_offers_query(instance_type: str,
+                                region: str,
+                                disk_size: int,
+                                secure_only: bool,
+                                min_duration_days: Optional[int] = None) -> str:
     # ref: https://docs.vast.ai/api-reference/search/search-offers
 
     # Every value has to be one the SDK's query parser can read whole. It stops
@@ -256,6 +260,13 @@ def _create_search_offers_query(instance_type: str, region: str, disk_size: int,
     ]
     if secure_only:
         query.append('datacenter=true')
+    if min_duration_days:
+        # Only offers with more than N days of availability left, so a long job
+        # is not placed on a host whose rental window ends mid-run. This narrows
+        # the offer set; Vast's own ranking still picks among what is left. The
+        # SDK scales `duration` from days to seconds; an int for the same reason
+        # as cpu_ram above.
+        query.append(f'duration>{int(min_duration_days)}')
 
     return ' '.join(query)
 

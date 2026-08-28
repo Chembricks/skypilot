@@ -2250,6 +2250,10 @@ def get_config_schema():
                 'create_instance_kwargs': {
                     'type': 'object',
                 },
+                'min_duration_days': {
+                    'type': 'integer',
+                    'minimum': 1,
+                },
             }
         },
         'nebius': {

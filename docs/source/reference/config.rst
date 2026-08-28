@@ -258,6 +258,7 @@ Below is the configuration syntax and some example values. See detailed explanat
 
   :ref:`vast <config-yaml-vast>`:
     :ref:`datacenter_only <config-yaml-vast-datacenter-only>`: true
+    :ref:`min_duration_days <config-yaml-vast-min-duration-days>`: 2
     :ref:`create_instance_kwargs <config-yaml-vast-create-instance-kwargs>`:
       template_hash: f0e124f0e98bfbc2ecb05dc713009ee7
       env: "-e YOUR_CUSTOM=YOUR_VAL"
@@ -2856,6 +2857,24 @@ can be overridden per task via :ref:`config flag <config-client-cli-flag>`.
 
 Default: ``false``
 
+.. _config-yaml-vast-min-duration-days:
+
+``vast.min_duration_days``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Only consider offers with more than this many days of availability left
+(optional). A Vast offer advertises how long its host stays rentable; without a
+floor, a long-running job can be placed on a machine whose rental window ends
+mid-run. Internally, this adds ``duration>N`` to the launch query.
+
+The value is in **whole days**; a fractional value is rejected. This narrows the
+set of offers considered — it does not reorder it, so Vast's own ranking still
+chooses among the offers that qualify. Note that a high floor can leave no
+matching offer at all. This config can be overridden per task via
+:ref:`config flag <config-client-cli-flag>`.
+
+Default: unset (no filter).
+
 .. _config-yaml-vast-create-instance-kwargs:
 
 ``vast.create_instance_kwargs``
@@ -2943,6 +2962,7 @@ Example:
 
   vast:
     datacenter_only: true
+    min_duration_days: 2
     create_instance_kwargs:
       python_utf8: true
       lang_utf8: true

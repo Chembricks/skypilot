@@ -223,6 +223,13 @@ class Vast(clouds.Cloud):
             default_value={},
             override_configs=resources.cluster_config_overrides,
         )
+        min_duration_days = skypilot_config.get_effective_region_config(
+            cloud='vast',
+            region=region.name,
+            keys=('min_duration_days',),
+            default_value=None,
+            override_configs=resources.cluster_config_overrides,
+        )
 
         return {
             'instance_type': resources.instance_type,
@@ -238,6 +245,7 @@ class Vast(clouds.Cloud):
             # `{% if docker_login_config is not none %}` guard crashes.
             # provision/vast/instance.py reads it back from provider_config.
             'docker_login_config': resources.docker_login_config,
+            'min_duration_days': min_duration_days,
         }
 
     def _get_feasible_launchable_resources(

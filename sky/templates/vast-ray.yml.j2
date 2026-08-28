@@ -23,6 +23,9 @@ provider:
     server: |-
       {{docker_login_config.server}}
   {%- endif %}
+  {%- if min_duration_days is not none %}
+  min_duration_days: {{min_duration_days}}
+  {%- endif %}
 
 auth:
   ssh_user: root
