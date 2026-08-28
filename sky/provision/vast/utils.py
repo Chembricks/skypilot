@@ -234,7 +234,14 @@ def _create_search_offers_query(instance_type: str, region: str, disk_size: int,
                                 secure_only: bool) -> str:
     # ref: https://docs.vast.ai/api-reference/search/search-offers
 
-    cpu_ram = float(instance_type.split('-')[-1]) / 1024
+    # Every value has to be one the SDK's query parser can read whole. It stops
+    # at the first character it cannot match and keeps what it parsed so far,
+    # so a value it chokes on takes the rest of the query with it -- silently.
+    # That rules out quotes (hence the bare geolocation/gpu_name, with the
+    # underscores the parser turns back into spaces) and decimal points, hence
+    # the int() below: `cpu_ram>=64.0` parses as `cpu_ram >= 64` and drops
+    # every term after it, which is `datacenter=true`.
+    cpu_ram = int(float(instance_type.split('-')[-1]) / 1024)
     gpu_name = instance_type.split('-')[1]
     num_gpus = int(instance_type.split('-')[0].replace('x', ''))
 
