@@ -36,7 +36,7 @@ import yaml
 
 from sky.clouds import vast
 from sky.provision import docker_utils
-from sky.provision.vast import utils as vast_utils
+from sky.provision.vast import utils as sky_vast_utils
 from sky.provision.vast.utils import _create_search_offers_query
 from sky.utils import common_utils
 from sky.utils import resources_utils
@@ -251,15 +251,15 @@ def _launch_query(**kwargs):
     with mock.patch('sky.provision.vast.utils.vast.vast',
                     return_value=_FakeVast()):
         with pytest.raises(RuntimeError):
-            vast_utils.launch(name='vastcheck-head',
-                              instance_type='1x-RTX_4090-32-65536',
-                              region='Japan, JP, AS',
-                              disk_size=40,
-                              image_name='vastai/base:0.0.2',
-                              ports=None,
-                              preemptible=False,
-                              secure_only=False,
-                              **kwargs)
+            sky_vast_utils.launch(name='vastcheck-head',
+                                  instance_type='1x-RTX_4090-32-65536',
+                                  region='Japan, JP, AS',
+                                  disk_size=40,
+                                  image_name='vastai/base:0.0.2',
+                                  ports=None,
+                                  preemptible=False,
+                                  secure_only=False,
+                                  **kwargs)
     return captured['query']
 
 
