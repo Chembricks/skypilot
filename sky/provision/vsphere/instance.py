@@ -522,11 +522,7 @@ def open_ports(
     provider_config: Optional[Dict[str, Any]] = None,
 ) -> None:
     """See sky/provision/__init__.py"""
-    logger.info(f'New provision of Vsphere: open_ports(). '
-                f'{cluster_name_on_cloud}'
-                f'{ports}'
-                f'{provider_config}')
-    pass
+    del cluster_name_on_cloud, ports, provider_config  # unused
 
 
 def cleanup_ports(
@@ -534,9 +530,7 @@ def cleanup_ports(
     provider_config: Optional[Dict[str, Any]] = None,
 ) -> None:
     """See sky/provision/__init__.py"""
-    logger.info(f'New provision of Vsphere: cleanup_ports().'
-                f'{cluster_name_on_cloud} {provider_config}')
-    pass
+    del cluster_name_on_cloud, provider_config  # unused
 
 
 def _get_head_instance_id(instances):
