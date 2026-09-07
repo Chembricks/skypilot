@@ -69,7 +69,6 @@ def run_instances(region: str, cluster_name: str, cluster_name_on_cloud: str,
     del cluster_name  # unused
     logger.info(f'Starting run_instances with region={region}, '
                 f'cluster={cluster_name_on_cloud}')
-    logger.debug(f'Config: {config}')
     start_time = time.time()
 
     # Define pending statuses for Hyperbolic

@@ -92,7 +92,6 @@ def run_instances(
     """
     logger.debug(f'Starting run_instances with region={region}, '
                  f'cluster={cluster_name_on_cloud}')
-    logger.debug(f'Config: {config}')
 
     # Check if there's a paused bid that needs to be resumed
     resumed_instance_ids: List[str] = []
