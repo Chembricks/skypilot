@@ -55,9 +55,6 @@ def run_instances(region: str, cluster_name: str, cluster_name_on_cloud: str,
 
     create_instance_kwargs = config.provider_config.get(
         'create_instance_kwargs', {})
-    logger.debug(f'provider_config: {config.provider_config}')
-    logger.debug(f'create_instance_kwargs from provider_config: '
-                 f'{create_instance_kwargs}')
 
     # Get SSH public key path and read the content for vast.ai key injection
     ssh_public_key_path = config.authentication_config.get('ssh_public_key')
