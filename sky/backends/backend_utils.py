@@ -2859,9 +2859,13 @@ def _update_cluster_status(
     # from cloud -> provision layer.
     should_check_ray = (cloud is not None and cloud.uses_ray() and
                         handle.provision_runtime_metadata.has_ray)
-    if (all_nodes_up and (not should_check_ray or
-                          run_ray_status_to_check_ray_cluster_healthy()) and
-            not external_cluster_failures):
+    # A cluster recorded UP must carry a handle check_cluster_available() will
+    # accept; it rejects head_ip=None outright. The Ray health check below
+    # catches a handle persisted before the launch reached update_cluster_ips(),
+    # but clouds that skip that check need the same guard.
+    if (all_nodes_up and handle.cached_external_ips is not None and
+        (not should_check_ray or run_ray_status_to_check_ray_cluster_healthy())
+            and not external_cluster_failures):
         # NOTE: all_nodes_up calculation is fast due to calling cloud CLI;
         # run_ray_status_to_check_all_nodes_up() is slow due to calling `ray get
         # head-ip/worker-ips`.
