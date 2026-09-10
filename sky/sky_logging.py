@@ -91,6 +91,25 @@ class EnvAwareHandler(rich_utils.RichSafeStreamHandler):
 
 _root_logger = logging.getLogger('sky')
 _default_handler = None
+# Whether human-facing text goes to stderr. A FLAG, not a stream object: process-wide,
+# because reload_logger() drops the handler and _setup_logger() builds a new one, so a
+# redirect stored on the instance is silently undone the next time that happens; and a flag
+# rather than a captured `sys.stderr` so the stream is resolved per call, which keeps it
+# correct under redirect_stderr(), pytest capture, and anything else that swaps it later.
+_logs_to_stderr = False
+
+
+def default_stream():
+    """Where human-facing text belongs: stderr once a machine-readable output is requested.
+
+    Consulted by the client's request-log relay as well as by the log handler. Server-side
+    lines arrive over the wire and are printed by the client, so they are NOT covered by
+    redirecting the client's own logger -- that is why the "Cluster(s) not found" line kept
+    reaching stdout under `-o json` after the handler had already been moved.
+    """
+    return sys.stderr if _logs_to_stderr else sys.stdout
+
+
 _logging_config = threading.local()
 
 NO_PREFIX_FORMATTER = NewLineFormatter(None, datefmt=_DATE_FORMAT)
@@ -109,7 +128,7 @@ def _setup_logger():
     _root_logger.setLevel(logging.DEBUG)
     global _default_handler
     if _default_handler is None:
-        _default_handler = EnvAwareHandler(sys.stdout)
+        _default_handler = EnvAwareHandler(default_stream())
         if env_options.Options.SHOW_DEBUG_INFO.get():
             _default_handler.setLevel(logging.DEBUG)
         else:
@@ -128,7 +147,8 @@ def _setup_logger():
         # for certain loggers.
         for logger_name in _SENSITIVE_LOGGER:
             logger = logging.getLogger(logger_name)
-            handler_to_logger = EnvAwareHandler(sys.stdout, sensitive=True)
+            handler_to_logger = EnvAwareHandler(default_stream(),
+                                                sensitive=True)
             logger.addHandler(handler_to_logger)
             logger.setLevel(logging.INFO)
             if _show_logging_prefix():
@@ -198,6 +218,40 @@ def logging_enabled(logger: logging.Logger, level: int) -> bool:
     # actually log anything, since the log level is set on the handler in
     # _setup_logger.
     return logger.getEffectiveLevel() <= level
+
+
+def route_logs_to_stderr() -> None:
+    """Send logging and sky_logging.print() to stderr, leaving stdout for the payload.
+
+    Under a machine-readable ``--output`` the caller is a program, and stdout must contain
+    only the payload. It did not: the default handler writes to stdout (see _setup_logger),
+    so any ``logger.info`` reached on the way to the answer landed in the middle of it. For
+    example ``sky status -o json <unknown>`` emitted
+
+        Cluster(s) not found: \x1b[1m<unknown>\x1b[0m.
+        []
+
+    on stdout -- ANSI escapes included -- which json.loads() cannot read, while stderr stayed
+    empty. Consumers were pushed back to scraping the human table, where "no such cluster" and
+    "could not reach the server" look identical.
+
+    One-way and process-wide: the CLI decides this once, from the parsed --output value, and
+    the process exits with the command. Kept separate from silent() because the messages are
+    still wanted -- a human running with -o json in a terminal should see them -- just not on
+    the stream carrying the data.
+    """
+    global print, _logs_to_stderr
+    _logs_to_stderr = True
+    _setup_logger()
+    if _default_handler is not None:
+        _default_handler.setStream(sys.stderr)
+
+    def _print_to_stderr(*args, **kwargs):
+        # setdefault, so an explicit file= still wins; sys.stderr resolved per call.
+        kwargs.setdefault('file', sys.stderr)
+        return builtins.print(*args, **kwargs)
+
+    print = _print_to_stderr
 
 
 @contextlib.contextmanager

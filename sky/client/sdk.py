@@ -203,7 +203,11 @@ def stream_response(request_id: Optional[server_common.RequestId[T]],
                     # Already printed on a previous attempt; skip.
                     continue
 
-                print(line, flush=True, end='', file=output_stream)
+                print(line,
+                      flush=True,
+                      end='',
+                      file=output_stream if output_stream is not None else
+                      sky_logging.default_stream())
 
                 if retry_context is not None and resumable:
                     # Reaching here implies line_count > line_processed

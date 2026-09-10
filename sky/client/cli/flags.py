@@ -6,6 +6,7 @@ from typing import Dict, Optional, Tuple
 import click
 import dotenv
 
+from sky import sky_logging
 from sky import skypilot_config
 from sky.skylet import autostop_lib
 from sky.skylet import constants
@@ -470,6 +471,26 @@ OUTPUT_FORMAT_JSON = 'json'
 OUTPUT_FORMAT_CHOICES = [OUTPUT_FORMAT_TABLE, OUTPUT_FORMAT_JSON]
 
 
+def _keep_stdout_for_the_payload(ctx, param, value):
+    """Route logging to stderr when a machine-readable --output is requested.
+
+    A click option callback, so it runs during parameter parsing -- before any command body
+    can log -- and applies to every command carrying this decorator rather than to whichever
+    one last needed it.
+
+    Without it, stdout mixes prose into the payload: SkyPilot's default log handler writes to
+    stdout, so `sky status -o json <unknown>` printed "Cluster(s) not found: ..." (with ANSI
+    escapes) ahead of the JSON, and json.loads() on the result failed while stderr stayed
+    empty. Exit codes already distinguish the cases a consumer cares about -- 0 with an empty
+    array for "no such cluster", non-zero for "the query failed" -- so a clean stdout is all
+    that was missing.
+    """
+    del ctx, param  # unused; click passes them to every callback
+    if value == OUTPUT_FORMAT_JSON:
+        sky_logging.route_logs_to_stderr()
+    return value
+
+
 def output_format_option(helptext: Optional[str] = None):
     """A decorator for the --output/-o option.
 
@@ -487,6 +508,7 @@ def output_format_option(helptext: Optional[str] = None):
                                               case_sensitive=False),
                             default=OUTPUT_FORMAT_TABLE,
                             required=False,
+                            callback=_keep_stdout_for_the_payload,
                             help=helptext)(func)
 
     return return_option_decorator
