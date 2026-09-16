@@ -384,8 +384,9 @@ class SSHConfigHelper:
 
                 if not cls._windows_ssh_setup_warned:
                     cls._windows_ssh_setup_warned = True
-                    print(f'  WSL detected: SSH config also added to Windows '
-                          f'({windows_ssh_config}) for VSCode Remote-SSH.')
+                    sky_logging.print(
+                        f'  WSL detected: SSH config also added to Windows '
+                        f'({windows_ssh_config}) for VSCode Remote-SSH.')
 
         except (OSError, PermissionError) as e:
             # Silently ignore errors - Windows SSH config is optional

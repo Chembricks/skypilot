@@ -27,7 +27,7 @@ they are not equally covered:
     relayed server line (sdk.py:206)          yes        yes
     client-side logger.info                    no        yes
     sky_logging.print                          no        yes
-    WSL SSH-config notice (bare print)         no         no
+    WSL SSH-config notice (cluster_utils)      no        yes
 
 The client-side logger is the discriminating case. `sky status` happens to log
 nothing client-side, which is why the original report only exposed the relay
@@ -36,9 +36,11 @@ tested. `sky queue` logs 'Fetching job queue for: ...' at
 `sky/client/cli/command.py:2648` under the same `--output` option (`:2632`),
 and there the two diverge.
 
-The WSL notice is a bare `print` that no fix on the table reaches; it is marked
-`xfail(strict=True)` rather than fixed here, so that closing it forces an edit
-to this file instead of passing silently.
+The WSL notice was a bare `print` that no fix on the table reached, carried here
+as `xfail(strict=True)` so that closing the gap would force an edit to this file
+rather than pass silently. It has since been sent through `sky_logging.print`,
+the mark is gone, and the row above is the result: one more mechanism this
+branch covers and a relay-only fix does not.
 """
 # Both disables are the point of the file rather than incidental to it. The
 # contract is reached through SkyPilot's own private entry points -- the
@@ -133,7 +135,7 @@ def _emit_sky_logging_print(tmp_path, monkeypatch):
 
 
 def _emit_wsl_notice(tmp_path, monkeypatch):
-    """The WSL SSH-config notice: a builtin `print` with no `file=`.
+    """The WSL SSH-config notice, sent through sky_logging.print.
 
     `sky/utils/cluster_utils.py:386`, reached through the real classmethod
     rather than reproduced. The gate is `get_wsl_windows_home()`, which returns
@@ -178,13 +180,7 @@ _EMITTERS = [
     _emit_relayed_server_line,
     _emit_client_logger_info,
     _emit_sky_logging_print,
-    pytest.param(_emit_wsl_notice,
-                 marks=pytest.mark.xfail(
-                     strict=True,
-                     reason='cluster_utils.py:386 is a builtin print with no '
-                     'file=; no redirect in sky_logging or sdk reaches it. '
-                     'Fixing it needs either deletion or contextlib.'
-                     'redirect_stdout around the command body.')),
+    _emit_wsl_notice,
 ]
 
 # Named ids, because a failure here has to say which MECHANISM leaked, not which
