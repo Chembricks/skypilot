@@ -174,7 +174,7 @@ def _emit_wsl_notice(tmp_path, monkeypatch):
         'this test would pass for the wrong reason')
 
 
-@pytest.mark.parametrize('emit', [
+_EMITTERS = [
     _emit_relayed_server_line,
     _emit_client_logger_info,
     _emit_sky_logging_print,
@@ -185,9 +185,23 @@ def _emit_wsl_notice(tmp_path, monkeypatch):
                      'file=; no redirect in sky_logging or sdk reaches it. '
                      'Fixing it needs either deletion or contextlib.'
                      'redirect_stdout around the command body.')),
-])
-def test_stdout_carries_only_the_payload(activate_json_mode, emit, capfd,
-                                         tmp_path, monkeypatch):
+]
+
+# Named ids, because a failure here has to say which MECHANISM leaked, not which
+# index: the file exists to compare what each candidate fix covers, and 'emit1'
+# cannot be read against that table. Same order as _EMITTERS -- a mismatch would
+# mislabel a failure, which is worse than an index.
+_EMITTER_IDS = [
+    'relayed_server_line',
+    'client_logger_info',
+    'sky_logging_print',
+    'wsl_notice',
+]
+
+
+@pytest.mark.usefixtures('activate_json_mode')
+@pytest.mark.parametrize('emit', _EMITTERS, ids=_EMITTER_IDS)
+def test_stdout_carries_only_the_payload(emit, capfd, tmp_path, monkeypatch):
     """Whatever the emitter put on a stream, stdout still parses as JSON.
 
     `capfd`, not `capsys`, and the difference is load-bearing. A logging
@@ -201,7 +215,6 @@ def test_stdout_carries_only_the_payload(activate_json_mode, emit, capfd,
     stdout no matter which object made it, which is also what a program
     consuming the output actually reads.
     """
-    del activate_json_mode  # fixture, requested for its side effect
     emit(tmp_path, monkeypatch)
     print(json.dumps([]))  # the payload the command would emit
     stdout = capfd.readouterr().out
